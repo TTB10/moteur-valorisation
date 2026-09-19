@@ -9,11 +9,13 @@ class Instrument(ABC):
 
     @abstractmethod
     def payoff(self, spot):
-        """Ce que rapporte le contrat à l'échéance, pour un ou plusieurs spots."""
+        """Ce que rapporte le contrat à l'exercice, pour un ou plusieurs spots."""
 
 
 @dataclass(frozen=True)
-class EuropeanOption(Instrument):
+class VanillaOption(Instrument):
+    """Clauses et payoff communs aux options européennes et américaines."""
+
     strike: float           # K
     maturity: float         # T, en années
     option_type: str = "call"
@@ -29,3 +31,13 @@ class EuropeanOption(Instrument):
         if self.option_type == "call":
             return np.maximum(spot - self.strike, 0.0)
         return np.maximum(self.strike - spot, 0.0)
+
+
+@dataclass(frozen=True)
+class EuropeanOption(VanillaOption):
+    """Exerçable uniquement à maturité."""
+
+
+@dataclass(frozen=True)
+class AmericanOption(VanillaOption):
+    """Exerçable à tout instant jusqu'à maturité."""
