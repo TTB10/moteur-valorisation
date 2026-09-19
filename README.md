@@ -19,13 +19,22 @@ permet de comparer les méthodes entre elles.
 
 - [x] Moteur analytique Black-Scholes
 - [x] Monte Carlo avec réduction de variance
-- [ ] Arbre binomial Cox-Ross-Rubinstein
+- [x] Arbre binomial Cox-Ross-Rubinstein
 - [ ] Grecques analytiques et par différences finies
 - [ ] Couverture dynamique en delta
 - [ ] Surface de volatilité implicite
 - [ ] VaR et Expected Shortfall
 
 ![Convergence Monte Carlo](figures/convergence_monte_carlo.png)
+![Convergence de l'arbre](figures/convergence_arbre.png)
+
+| Méthode | Prix | Écart à Black-Scholes | Erreur standard | Temps (ms) |
+|---|---:|---:|---:|---:|
+| Black-Scholes (formule fermée) | 10.4506 | +0.0000 | — | 0.17 |
+| Monte Carlo simple, 100 000 tirages | 10.4205 | -0.0300 | 0.0468 | 3.06 |
+| Monte Carlo antithétiques + contrôle, 100 000 tirages | 10.4409 | -0.0096 | 0.0088 | 3.38 |
+| Arbre CRR, 100 pas | 10.4306 | -0.0200 | — | 0.53 |
+| Arbre CRR, 1 000 pas | 10.4486 | -0.0020 | — | 5.53 |
 
 ## Installation
 
