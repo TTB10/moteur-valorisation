@@ -56,3 +56,25 @@ def test_antithetique_reduit_la_variance():
     anti = MonteCarloEngine(n_paths=200_000, seed=7, antithetic=True).simulate(option, marche)
 
     assert (simple.std_error / anti.std_error) ** 2 > 1.5
+
+@pytest.mark.parametrize("option_type", ["call", "put"])
+@pytest.mark.parametrize("S, K, T, r, q, sigma", CAS)
+def test_controle_retrouve_black_scholes(S, K, T, r, q, sigma, option_type):
+    marche = MarketData(spot=S, rate=r, dividend=q, vol=sigma)
+    option = EuropeanOption(K, T, option_type)
+
+    prix_bs = BlackScholesEngine().price(option, marche)
+    resultat = MonteCarloEngine(n_paths=200_000, seed=2026, control_variate=True).simulate(option, marche)
+
+    assert abs(resultat.price - prix_bs) < 3 * resultat.std_error
+
+
+def test_controle_reduit_la_variance():
+    """À nombre égal de spots simulés, le gain doit être nettement supérieur à 1."""
+    marche = MarketData(spot=100, rate=0.05, dividend=0.0, vol=0.2)
+    option = EuropeanOption(100, 1.0)
+
+    simple = MonteCarloEngine(n_paths=200_000, seed=7).simulate(option, marche)
+    controle = MonteCarloEngine(n_paths=200_000, seed=7, control_variate=True).simulate(option, marche)
+
+    assert (simple.std_error / controle.std_error) ** 2 > 2
