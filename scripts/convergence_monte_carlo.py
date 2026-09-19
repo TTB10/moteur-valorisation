@@ -52,7 +52,7 @@ ax_prix.set_title("Prix et intervalle de confiance à 95 %")
 ax_prix.legend()
 
 # Graphe de droite : erreur standard en log-log, avec une droite de pente -1/2 pour référence
-reference = erreurs_simple[0] * np.sqrt(TAILLES[0] / TAILLES)
+reference = erreurs_simple[-1] * np.sqrt(TAILLES[-1] / TAILLES)
 ax_err.plot(TAILLES, reference, "k:", label="Pente −1/2")
 ax_err.set_xscale("log")
 ax_err.set_yscale("log")
