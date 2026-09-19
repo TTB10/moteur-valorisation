@@ -18,12 +18,14 @@ permet de comparer les méthodes entre elles.
 ## Avancement
 
 - [x] Moteur analytique Black-Scholes
-- [ ] Monte Carlo avec réduction de variance
+- [x] Monte Carlo avec réduction de variance
 - [ ] Arbre binomial Cox-Ross-Rubinstein
 - [ ] Grecques analytiques et par différences finies
 - [ ] Couverture dynamique en delta
 - [ ] Surface de volatilité implicite
 - [ ] VaR et Expected Shortfall
+
+![Convergence Monte Carlo](figures/convergence_monte_carlo.png)
 
 ## Installation
 
