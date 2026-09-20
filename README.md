@@ -21,13 +21,14 @@ permet de comparer les méthodes entre elles.
 - [x] Monte Carlo avec réduction de variance
 - [x] Arbre binomial Cox-Ross-Rubinstein
 - [x] Grecques analytiques et par différences finies
-- [ ] Couverture dynamique en delta
+- [x] Couverture dynamique en delta
 - [ ] Surface de volatilité implicite
 - [ ] VaR et Expected Shortfall
 
 ![Convergence Monte Carlo](figures/convergence_monte_carlo.png)
 ![Convergence de l'arbre](figures/convergence_arbre.png)
 ![Grecques contre le spot](figures/grecques_contre_spot.png)
+![Couverture en delta](figures/couverture_delta.png)
 
 | Méthode | Prix | Écart à Black-Scholes | Erreur standard | Temps (ms) |
 |---|---:|---:|---:|---:|
