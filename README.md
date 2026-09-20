@@ -19,9 +19,10 @@ permet de comparer les méthodes entre elles.
 
 - [x] Moteur analytique Black-Scholes
 - [x] Monte Carlo avec réduction de variance
-- [x] Arbre binomial Cox-Ross-Rubinstein
+- [x] Arbre binomial Cox-Ross-Rubinstein (européennes et américaines)
 - [x] Grecques analytiques et par différences finies
 - [x] Couverture dynamique en delta
+- [x] Portefeuille et stratégies optionnelles
 - [ ] Surface de volatilité implicite
 - [ ] VaR et Expected Shortfall
 
@@ -29,6 +30,7 @@ permet de comparer les méthodes entre elles.
 ![Convergence de l'arbre](figures/convergence_arbre.png)
 ![Grecques contre le spot](figures/grecques_contre_spot.png)
 ![Couverture en delta](figures/couverture_delta.png)
+![Grecques des stratégies](figures/strategies_grecques.png)
 
 | Méthode | Prix | Écart à Black-Scholes | Erreur standard | Temps (ms) |
 |---|---:|---:|---:|---:|
