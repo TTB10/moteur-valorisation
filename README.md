@@ -23,7 +23,7 @@ permet de comparer les méthodes entre elles.
 - [x] Grecques analytiques et par différences finies
 - [x] Couverture dynamique en delta
 - [x] Portefeuille et stratégies optionnelles
-- [ ] Surface de volatilité implicite
+- [x] Surface de volatilité implicite
 - [ ] VaR et Expected Shortfall
 
 ![Convergence Monte Carlo](figures/convergence_monte_carlo.png)
@@ -31,6 +31,8 @@ permet de comparer les méthodes entre elles.
 ![Grecques contre le spot](figures/grecques_contre_spot.png)
 ![Couverture en delta](figures/couverture_delta.png)
 ![Grecques des stratégies](figures/strategies_grecques.png)
+![Surface de volatilité](figures/surface_volatilite.png)
+![Smile](figures/smile_volatilite.png)
 
 | Méthode | Prix | Écart à Black-Scholes | Erreur standard | Temps (ms) |
 |---|---:|---:|---:|---:|
