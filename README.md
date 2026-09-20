@@ -20,13 +20,14 @@ permet de comparer les méthodes entre elles.
 - [x] Moteur analytique Black-Scholes
 - [x] Monte Carlo avec réduction de variance
 - [x] Arbre binomial Cox-Ross-Rubinstein
-- [ ] Grecques analytiques et par différences finies
+- [x] Grecques analytiques et par différences finies
 - [ ] Couverture dynamique en delta
 - [ ] Surface de volatilité implicite
 - [ ] VaR et Expected Shortfall
 
 ![Convergence Monte Carlo](figures/convergence_monte_carlo.png)
 ![Convergence de l'arbre](figures/convergence_arbre.png)
+![Grecques contre le spot](figures/grecques_contre_spot.png)
 
 | Méthode | Prix | Écart à Black-Scholes | Erreur standard | Temps (ms) |
 |---|---:|---:|---:|---:|
