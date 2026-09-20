@@ -20,14 +20,18 @@ def chaine_fabriquee():
         ("call", 108, 0.25, 1.00, 2.00, 500, 1000),   # spread relatif 67 %
         ("call", 400, 0.25, 0.50, 0.52, 500, 1000),   # strike trop éloigné, mais bien coté
         ("call",  90, 0.25, 11.0, 11.2, 500, 1000),   # dans la monnaie
+        ("call", 112, 0.01, 2.00, 2.10, 500, 1000),   # maturité trop courte (3,65 jours)
+        ("call", 113, 0.25,  0.04, 0.05, 500, 1000),   # prix trop faible
     ], columns=["type", "strike", "maturity", "bid", "ask", "volume", "open_interest"])
 
 
 def test_chaque_filtre_rejette_sa_ligne():
     propre, journal = clean_option_chain(chaine_fabriquee(), SPOT)
 
+    assert journal["maturité trop courte"] == 1
     assert journal["cotation absente ou incohérente"] == 2
-    assert journal["volume insuffisant"] == 1
+    assert journal["prix trop faible"] == 1
+    assert journal["illiquide (ni volume ni encours)"] == 1
     assert journal["écart achat-vente excessif"] == 1
     assert journal["strike trop éloigné"] == 1
     assert journal["option dans la monnaie (vega faible)"] == 1

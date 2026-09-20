@@ -13,34 +13,59 @@ import pandas as pd
 COLONNES = ["type", "strike", "maturity", "bid", "ask", "mid", "volume", "open_interest"]
 
 
-def fetch_option_chain(ticker, max_maturities=8):
-    """Télécharge la chaîne d'options et le spot. Renvoie (DataFrame brut, spot, horodatage)."""
+# Échéances visées, en années : environ 1, 2, 3, 6, 9 mois, 1 an, 18 mois, 2 ans.
+TENORS_CIBLES = (1 / 12, 2 / 12, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0)
+
+
+def fetch_option_chain(ticker, tenors=TENORS_CIBLES, maturite_min=7 / 365):
+    """Télécharge la chaîne d'options et le spot. Renvoie (DataFrame brut, spot, horodatage).
+
+    Les échéances sont choisies pour couvrir la structure par terme : on retient
+    celle qui est la plus proche de chaque ténor visé, plutôt que les premières
+    de la liste (sur un sous-jacent à échéances quotidiennes, ce seraient toutes
+    des maturités d'une semaine).
+    """
     import yfinance as yf
 
     actif = yf.Ticker(ticker)
     spot = _spot_courant(actif)
-    echeances = actif.options[:max_maturities]
-    if not echeances:
-        raise ValueError(f"Aucune échéance cotée pour {ticker}.")
-
     aujourdhui = datetime.now(timezone.utc).date()
+
+    disponibles = {}
+    for echeance in actif.options:
+        maturite = (pd.Timestamp(echeance).date() - aujourdhui).days / 365.0
+        if maturite >= maturite_min:
+            disponibles[echeance] = maturite
+    if not disponibles:
+        raise ValueError(f"Aucune échéance exploitable pour {ticker}.")
+
+    retenues = _echeances_etalees(disponibles, tenors)
     lignes = []
 
-    for echeance in echeances:
+    for echeance in retenues:
         chaine = actif.option_chain(echeance)
-        maturite = (pd.Timestamp(echeance).date() - aujourdhui).days / 365.0
-        if maturite <= 0:
-            continue
         for type_option, table in (("call", chaine.calls), ("put", chaine.puts)):
             extrait = table[["strike", "bid", "ask", "volume", "openInterest"]].copy()
             extrait["type"] = type_option
-            extrait["maturity"] = maturite
+            extrait["maturity"] = disponibles[echeance]
             extrait["expiration"] = echeance
             lignes.append(extrait)
 
     brut = pd.concat(lignes, ignore_index=True)
     brut = brut.rename(columns={"openInterest": "open_interest"})
     return brut, spot, datetime.now(timezone.utc)
+
+
+def _echeances_etalees(disponibles, tenors):
+    """Pour chaque ténor visé, l'échéance cotée la plus proche (sans doublon)."""
+    retenues = []
+    for cible in tenors:
+        candidats = [e for e in disponibles if e not in retenues]
+        if not candidats:
+            break
+        meilleure = min(candidats, key=lambda e: abs(disponibles[e] - cible))
+        retenues.append(meilleure)
+    return sorted(retenues, key=lambda e: disponibles[e])
 
 
 def _spot_courant(actif):
@@ -51,16 +76,19 @@ def _spot_courant(actif):
     return float(historique["Close"].iloc[-1])
 
 
-def clean_option_chain(brut, spot, volume_min=10, spread_max_relatif=0.25,
-                       moneyness_max=0.5, garder_otm_seulement=True):
+def clean_option_chain(brut, spot, volume_min=10, open_interest_min=100, spread_max_relatif=0.25,
+                       moneyness_max=0.5, prix_min=0.10, maturite_min=7 / 365,
+                       garder_otm_seulement=True):
     """Filtre les cotations inexploitables. Renvoie (DataFrame propre, journal des rejets).
 
-    Critères, dans l'ordre :
-      1. cotation absente ou incohérente (bid <= 0, ask <= bid)
-      2. illiquidité (volume insuffisant)
-      3. écart achat-vente excessif, relatif au mid
-      4. strike trop éloigné du spot (|ln(K/S)| > moneyness_max)
-      5. option dans la monnaie : vega faible, information redondante par parité
+    Critères, dans l'ordre (du plus dirimant au plus fin) :
+      1. maturité trop courte (0DTE : dynamique propre, conventions de comptage instables)
+      2. cotation absente ou incohérente (bid <= 0, ask <= bid)
+      3. prix trop faible (le tick domine l'information)
+      4. illiquidité (volume insuffisant)
+      5. écart achat-vente excessif, relatif au mid
+      6. strike trop éloigné du spot
+      7. option dans la monnaie : vega faible, information redondante par parité
     """
     df = brut.copy()
     journal = {"total initial": len(df)}
@@ -71,12 +99,16 @@ def clean_option_chain(brut, spot, volume_min=10, spread_max_relatif=0.25,
         df = df[masque].copy()
         journal[motif] = avant - len(df)
 
+    rejeter(df["maturity"] >= maturite_min, "maturité trop courte")
     rejeter((df["bid"] > 0) & (df["ask"] > df["bid"]), "cotation absente ou incohérente")
 
     df["mid"] = 0.5 * (df["bid"] + df["ask"])
     df["spread_relatif"] = (df["ask"] - df["bid"]) / df["mid"]
 
-    rejeter(df["volume"].fillna(0) >= volume_min, "volume insuffisant")
+    rejeter(df["mid"] >= prix_min, "prix trop faible")
+    liquide = (df["volume"].fillna(0) >= volume_min) | \
+        (df["open_interest"].fillna(0) >= open_interest_min)
+    rejeter(liquide, "illiquide (ni volume ni encours)")
     rejeter(df["spread_relatif"] <= spread_max_relatif, "écart achat-vente excessif")
 
     df["log_moneyness"] = np.log(df["strike"] / spot)
