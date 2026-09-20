@@ -41,3 +41,10 @@ class EuropeanOption(VanillaOption):
 @dataclass(frozen=True)
 class AmericanOption(VanillaOption):
     """Exerçable à tout instant jusqu'à maturité."""
+
+@dataclass(frozen=True)
+class Underlying(Instrument):
+    """Le sous-jacent lui-même, pour composer des positions mixtes (couverture, spreads)."""
+
+    def payoff(self, spot):
+        return np.asarray(spot, dtype=float)
