@@ -6,6 +6,7 @@ principe : aucune méthode n'est considérée comme juste tant qu'elle n'est pas
 méthode structurellement indépendante.
 
 **[Lire le white paper (7 pages)](docs/White_paper_moteur_valorisation.pdf)**
+**[Essayer l'application en ligne](https://moteur-valorisation.streamlit.app/)**
 
 ## Résultats clés
 
