@@ -1,4 +1,6 @@
-numpy
-scipy
-matplotlib
-pytest
+matplotlib==3.11.2
+numpy==2.5.3
+pandas==3.0.6
+pytest==9.1.1
+scipy==1.18.1
+yfinance==1.7.0

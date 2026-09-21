@@ -55,8 +55,9 @@ def test_valeurs_de_reference():
     assert g.rho == pytest.approx(53.2325, abs=1e-4)
 
 
-def test_gamma_maximal_a_la_monnaie():
-    """Le gamma culmine près de la monnaie, car il est proportionnel à phi(d1)."""
+def test_gamma_en_cloche_autour_de_la_monnaie():
+    """Le gamma est en cloche autour de la monnaie. Son maximum exact est en d1 = -sigma*sqrt(T),
+    soit légèrement sous le strike quand r > 0 : ce test ne vérifie que la forme en cloche."""
     marche_ref = MarketData(spot=100, rate=0.0, dividend=0.0, vol=0.2)
     option = EuropeanOption(100, 1.0)
 

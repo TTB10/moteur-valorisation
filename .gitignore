@@ -2,3 +2,6 @@
 __pycache__/
 .pytest_cache/
 *.pyc
+
+Add-Content .gitignore ".venv_test/"
+Get-Content .gitignore
