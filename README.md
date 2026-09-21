@@ -1,8 +1,11 @@
 # Moteur de valorisation d'options
 
+
 Moteur de valorisation et de gestion du risque d'options en Python, construit autour d'un
 principe : aucune méthode n'est considérée comme juste tant qu'elle n'est pas vérifiée par une
 méthode structurellement indépendante.
+
+**[Lire le white paper (7 pages)](docs/White_paper_moteur_valorisation.pdf)**
 
 ## Résultats clés
 
