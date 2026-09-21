@@ -24,7 +24,7 @@ permet de comparer les méthodes entre elles.
 - [x] Couverture dynamique en delta
 - [x] Portefeuille et stratégies optionnelles
 - [x] Surface de volatilité implicite
-- [ ] VaR et Expected Shortfall
+- [x] VaR et Expected Shortfall
 
 ![Convergence Monte Carlo](figures/convergence_monte_carlo.png)
 ![Convergence de l'arbre](figures/convergence_arbre.png)
@@ -33,6 +33,7 @@ permet de comparer les méthodes entre elles.
 ![Grecques des stratégies](figures/strategies_grecques.png)
 ![Surface de volatilité](figures/surface_volatilite.png)
 ![Smile](figures/smile_volatilite.png)
+![Backtest de la VaR](figures/backtest_var.png)
 
 | Méthode | Prix | Écart à Black-Scholes | Erreur standard | Temps (ms) |
 |---|---:|---:|---:|---:|
