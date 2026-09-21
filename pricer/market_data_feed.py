@@ -141,3 +141,13 @@ def implied_forward_by_parity(df_propre, maturite, rate):
 
     forwards = communs.values + np.exp(rate * maturite) * (calls[communs] - puts[communs]).values
     return float(np.median(forwards))
+
+
+def fetch_price_history(ticker, period="10y"):
+    """Historique des cours de clôture ajustés (dividendes réinvestis)."""
+    import yfinance as yf
+
+    historique = yf.Ticker(ticker).history(period=period, auto_adjust=True)
+    if historique.empty:
+        raise ValueError(f"Aucun historique disponible pour {ticker}.")
+    return historique["Close"]
