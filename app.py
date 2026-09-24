@@ -149,15 +149,17 @@ def convergence_arbre(type_option, americain, K, T, S, r, q, sigma):
     return pas, prix, BlackScholesEngine().price(europeenne, marche), "Black-Scholes"
 
 
-@st.cache_resource(show_spinner=False)
-def figures_profils(K, T, S, r, q, sigma):
+def figure_profil(vue, K, T, S, r, q, sigma):
     marche = MarketData(spot=S, rate=r, dividend=q, vol=sigma)
     bornes = np.linspace(max(K * 0.4, 1.0), K * 1.6, 300)
-    return (payoffs_quatre_positions(strike=K, spots=bornes),
-            prix_contre_spot(marche, strike=K, spots=bornes),
-            grecques_contre_spot(marche, strike=K, maturite=T, spots=bornes),
-            grecques_contre_temps(marche, strike=K,
-                                  moneyness=(0.9 * K, K, 1.1 * K)))
+
+    if vue == "Grecques contre le spot":
+        return grecques_contre_spot(marche, strike=K, maturite=T, spots=bornes)
+    if vue == "Grecques contre le temps":
+        return grecques_contre_temps(marche, strike=K, moneyness=(0.9 * K, K, 1.1 * K))
+    if vue == "Prix contre le spot":
+        return prix_contre_spot(marche, strike=K, spots=bornes)
+    return payoffs_quatre_positions(strike=K, spots=bornes)
 
 
 STRATEGIES = {
@@ -310,29 +312,31 @@ with onglets[0]:
 # ------------------------------------------------------- 2. Profils
 with onglets[1]:
     st.markdown("Payoffs, prix et grecques tracés avec les paramètres de la barre latérale.")
-    fig_payoffs, fig_prix, fig_grecques_spot, fig_grecques_temps = figures_profils(
-        K, T, S, r, q, sigma)
-
     choix = st.radio("Vue", ["Grecques contre le spot", "Grecques contre le temps",
                              "Prix contre le spot", "Payoffs élémentaires"],
                      horizontal=True)
-    if choix == "Grecques contre le spot":
-        st.pyplot(fig_grecques_spot)
-        st.caption("Gamma et vega sont identiques pour le call et le put, et en cloche autour "
-                   "de la monnaie : maximum exact en d₁ = −σ√T pour le gamma, +σ√T pour le vega.")
-    elif choix == "Grecques contre le temps":
-        st.pyplot(fig_grecques_temps)
-        st.caption("Gamma et thêta d'une option à la monnaie divergent quand la maturité tend "
-                   "vers zéro, alors qu'ils s'annulent hors de la monnaie : couvrir une option "
-                   "ATM en fin de vie est le cas le plus délicat.")
-    elif choix == "Prix contre le spot":
-        st.pyplot(fig_prix)
-        st.caption("L'écart entre le prix et la valeur intrinsèque est la valeur temps : "
-                   "elle rémunère l'incertitude restante et s'annule à maturité.")
-    else:
-        st.pyplot(fig_payoffs)
-        st.caption("L'asymétrie acheteur / vendeur : perte bornée à la prime contre gain borné "
-                   "à la prime, avec un risque potentiellement illimité côté vendeur.")
+
+    with st.spinner("Tracé en cours…"):
+        fig = figure_profil(choix, K, T, S, r, q, sigma)
+    st.pyplot(fig)
+    plt.close(fig)
+
+    LEGENDES = {
+        "Grecques contre le spot":
+            "Gamma et vega sont identiques pour le call et le put, et en cloche autour de la "
+            "monnaie : maximum exact en d₁ = −σ√T pour le gamma, +σ√T pour le vega.",
+        "Grecques contre le temps":
+            "Gamma et thêta d'une option à la monnaie divergent quand la maturité tend vers "
+            "zéro, alors qu'ils s'annulent hors de la monnaie : couvrir une option ATM en fin "
+            "de vie est le cas le plus délicat.",
+        "Prix contre le spot":
+            "L'écart entre le prix et la valeur intrinsèque est la valeur temps : elle rémunère "
+            "l'incertitude restante et s'annule à maturité.",
+        "Payoffs élémentaires":
+            "L'asymétrie acheteur / vendeur : perte bornée à la prime contre gain borné à la "
+            "prime, avec un risque potentiellement illimité côté vendeur.",
+    }
+    st.caption(LEGENDES[choix])
 
 # ------------------------------------------------------- 3. Stratégies
 with onglets[2]:

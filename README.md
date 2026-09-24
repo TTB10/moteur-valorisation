@@ -6,7 +6,7 @@ principe : aucune méthode n'est considérée comme juste tant qu'elle n'est pas
 méthode structurellement indépendante.
 
 **[Lire le white paper (7 pages)](docs/White_paper_moteur_valorisation.pdf)**
-**[Essayer l'application en ligne](https://moteur-valorisation.streamlit.app/)**
+**[Essayer l'application en ligne](https://moteur-valorisation.streamlit.app/)** — six onglets : valorisation par trois méthodes, profils de grecques, stratégies, couverture dynamique, volatilité implicite sur données de marché, VaR et Expected Shortfall. *(Peut mettre une trentaine de secondes à se réveiller.)*
 
 ## Résultats clés
 
