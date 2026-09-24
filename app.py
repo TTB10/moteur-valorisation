@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from pathlib import Path
 from pricer.engines.analytic import BlackScholesEngine
 from pricer.engines.binomial import BinomialTreeEngine
 from pricer.engines.monte_carlo import MonteCarloEngine
@@ -29,6 +30,7 @@ from pricer.strategies import bear_spread, bull_spread, butterfly, straddle, str
 
 JOURS_PAR_AN = 252
 DEPOT = "https://github.com/TTB10/moteur-valorisation"
+INSTANTANE = Path(__file__).resolve().parent / "data" / "chaine_options_snapshot.csv"
 
 st.set_page_config(page_title="Moteur de valorisation d'options", layout="wide",
                    page_icon="📈")
@@ -501,23 +503,34 @@ with onglets[4]:
                 "estimé par parité call-put, sans supposer de dividende.")
     ticker = st.text_input("Sous-jacent", value="SPY")
     taux_surface = st.slider("Taux sans risque supposé (%)", 0.0, 8.0, 4.0, 0.25) / 100
+    sources = (["Instantané du dépôt", "Marché en direct"] if INSTANTANE.exists()
+            else ["Marché en direct"])
+    source = st.radio("Source des données", sources, horizontal=True)
 
     if st.button("Charger la surface de volatilité"):
         try:
-            with st.spinner(f"Récupération des chaînes d'options de {ticker}…"):
+            with st.spinner("Chargement des chaînes d'options…"):
                 from pricer.market_data_feed import clean_option_chain, fetch_option_chain
                 from pricer.vol_surface import (build_vol_surface,
                                                 butterfly_arbitrage_violations,
                                                 calendar_arbitrage_violations)
 
-                brut, spot_marche, horodatage = fetch_option_chain(ticker)
+                if source == "Marché en direct":
+                    brut, spot_marche, horodatage = fetch_option_chain(ticker)
+                    legende = f"{ticker} — marché en direct, {horodatage:%Y-%m-%d %H:%M UTC}"
+                else:
+                    instantane = pd.read_csv(INSTANTANE)
+                    spot_marche = float(instantane["spot"].iloc[0])
+                    legende = (f"{instantane['ticker'].iloc[0]} — instantané du "
+                               f"{instantane['capture'].iloc[0]}")
+                    brut = instantane.drop(columns=["spot", "ticker", "capture"])
+
                 propre, journal = clean_option_chain(brut, spot_marche)
                 avec_itm, _ = clean_option_chain(brut, spot_marche, garder_otm_seulement=False)
                 surface, journal_surface = build_vol_surface(
                     propre, spot_marche, taux_surface, propre_pour_parite=avec_itm)
 
-            st.success(f"{ticker} — spot {spot_marche:.2f} — "
-                       f"capture {horodatage:%Y-%m-%d %H:%M UTC}")
+            st.success(f"{legende} — spot {spot_marche:.2f}")
 
             cols = st.columns(3)
             cols[0].metric("Cotations brutes", journal["total initial"])
