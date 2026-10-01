@@ -7,13 +7,13 @@ appelle le moteur du paquet `pricer`.
 
 import time
 from dataclasses import asdict, replace
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import streamlit as st
 
-from pathlib import Path
 from pricer.engines.analytic import BlackScholesEngine
 from pricer.engines.binomial import BinomialTreeEngine
 from pricer.engines.monte_carlo import MonteCarloEngine
@@ -62,7 +62,7 @@ with st.sidebar:
     n_steps = st.select_slider("Pas de l'arbre", [50, 100, 250, 500, 1000], value=500)
 
     st.divider()
-    st.caption(f"[Dépôt GitHub]({DEPOT}) · 1 068 tests automatiques")
+    st.caption(f"[Dépôt GitHub]({DEPOT}) · 1 069 tests automatiques")
 
 americain = style == "américain"
 PARAMS = (type_option, americain, K, T, S, r, q, sigma)
@@ -118,10 +118,10 @@ def valoriser(type_option, americain, K, T, S, r, q, sigma, n_paths, n_steps):
 @st.cache_data(show_spinner=False)
 def table_grecques(type_option, americain, K, T, S, r, q, sigma, n_steps):
     option, _, marche = construire(type_option, americain, K, T, S, r, q, sigma)
-    # Sur un moteur discret, le gamma exige un pas plus grand : le bruit joue le rôle
-    # d'un epsilon effectif très supérieur à la précision machine.
+    # Sur un moteur discret, le gamma exige un pas NETTEMENT plus grand : le prix de l'arbre
+    # oscille avec le nombre de pas, et la division par h^2 amplifie ce bruit.
     fd = finite_difference_greeks(BinomialTreeEngine(n_steps), option, marche,
-                                  pas_spot=1e-3, pas_spot_gamma=1e-2)
+                                  pas_spot=1e-3, pas_spot_gamma=3e-2)
     colonnes = {}
     if not americain:
         colonnes["Analytique (Black-Scholes)"] = asdict(BlackScholesEngine().greeks(option, marche))
@@ -151,6 +151,8 @@ def convergence_arbre(type_option, americain, K, T, S, r, q, sigma):
     return pas, prix, BlackScholesEngine().price(europeenne, marche), "Black-Scholes"
 
 
+# Une figure matplotlib n'est pas une donnée : elle porte un état de dessin et ne peut pas
+# être mise en cache d'une exécution à l'autre. On ne construit que la vue demandée.
 def figure_profil(vue, K, T, S, r, q, sigma):
     marche = MarketData(spot=S, rate=r, dividend=q, vol=sigma)
     bornes = np.linspace(max(K * 0.4, 1.0), K * 1.6, 300)
@@ -193,6 +195,7 @@ def analyser_strategie(nom, K, T, S, r, q, sigma):
 
 @st.cache_data(show_spinner=False)
 def experience_couverture(K, T, S, r, q, sigma, frequences, n_paths_hedge):
+    """Erreur de réplication d'un call VENDU, pour chaque fréquence de rebalancement."""
     option = EuropeanOption(K, T, "call")
     marche = MarketData(spot=S, rate=r, dividend=q, vol=sigma)
     resultats = {}
@@ -203,6 +206,18 @@ def experience_couverture(K, T, S, r, q, sigma, frequences, n_paths_hedge):
             "q01": res.quantile(0.01), "q99": res.quantile(0.99), "premium": res.premium,
         }
     return resultats
+
+
+def appliquer_sens(resultats, signe):
+    """L'erreur de l'acheteur est l'opposée de celle du vendeur, trajectoire par trajectoire.
+
+    La dispersion est identique ; seuls les signes et l'ordre des quantiles s'inversent.
+    """
+    if signe > 0:
+        return resultats
+    return {n: {**v, "errors": -v["errors"], "mean": -v["mean"],
+                "q01": -v["q99"], "q99": -v["q01"]}
+            for n, v in resultats.items()}
 
 
 @st.cache_data(show_spinner=False)
@@ -274,7 +289,9 @@ with onglets[0]:
     st.caption("Conventions : vega par 1,00 de volatilité (÷100 par point), thêta par an "
                "(÷365 par jour), rhô par 1,00 de taux. Les différences finies fonctionnent "
                "avec n'importe quel moteur, y compris pour une américaine, pour laquelle "
-               "aucune formule analytique n'existe.")
+               "aucune formule analytique n'existe. Le gamma y est calculé avec un pas plus "
+               "large : c'est une dérivée seconde, donc la division par h² amplifie le bruit "
+               "de discrétisation de l'arbre.")
 
     st.subheader("Convergence")
     gauche, droite = st.columns(2)
@@ -386,22 +403,31 @@ with onglets[2]:
 
 # ------------------------------------------------------- 4. Couverture
 with onglets[3]:
-    st.markdown("**Expérience.** On vend un call, on encaisse la prime et on la réplique en "
-                "rebalançant le delta à fréquence fixe. L'erreur finale est ce qui reste après "
-                "paiement du payoff.")
-    reglages = st.columns(2)
-    n_paths_hedge = reglages[0].select_slider("Trajectoires simulées",
+    reglages = st.columns(3)
+    sens = reglages[0].radio("Position", ["Vendeur (short gamma)", "Acheteur (long gamma)"])
+    n_paths_hedge = reglages[1].select_slider("Trajectoires simulées",
                                               [2_000, 5_000, 10_000], value=5_000)
     # Plafond volontaire : la simulation alloue une matrice n_paths x N (mémoire limitée en ligne).
-    montrer_vol = reglages[1].checkbox("Étudier l'écart entre volatilité de couverture et "
+    montrer_vol = reglages[2].checkbox("Étudier l'écart entre volatilité de couverture et "
                                        "volatilité réalisée", value=False)
+
+    vendeur = sens.startswith("Vendeur")
+    signe = 1.0 if vendeur else -1.0
+    acteur = "vendeur" if vendeur else "acheteur"
+
+    st.markdown(f"**Expérience.** On {'vend' if vendeur else 'achète'} un call et on le réplique "
+                "en rebalançant le delta à fréquence fixe. L'erreur finale est ce qui reste "
+                "après règlement du payoff. La position est simulée du côté "
+                f"**{acteur}** : les deux erreurs sont opposées trajectoire par trajectoire, "
+                "donc la dispersion est identique et seule l'asymétrie s'inverse.")
 
     frequences = (12, 52, 252, 1008)
     with st.spinner("Simulation des trajectoires…"):
-        resultats_hedge = experience_couverture(K, T, S, r, q, sigma, frequences, n_paths_hedge)
+        resultats_hedge = appliquer_sens(
+            experience_couverture(K, T, S, r, q, sigma, frequences, n_paths_hedge), signe)
 
     prime_hedge = resultats_hedge[frequences[0]]["premium"]
-    st.caption(f"Prime encaissée : **{prime_hedge:.4f}**")
+    st.caption(f"Prime {'encaissée' if vendeur else 'payée'} : **{prime_hedge:.4f}**")
 
     tableau = pd.DataFrame([
         {"Fréquence": libelle, "Moyenne": v["mean"], "Écart-type": v["std"],
@@ -447,24 +473,33 @@ with onglets[3]:
         with st.spinner("Variation de la volatilité réalisée…"):
             vols, moyennes, ecarts = pnl_contre_vol_realisee(K, T, S, r, q, sigma, 252,
                                                              n_paths_hedge)
+        moyennes = signe * moyennes
         fig, ax = figure(12, 4)
-        ax.plot(vols * 100, moyennes, "o-", label="P&L moyen du vendeur")
+        ax.plot(vols * 100, moyennes, "o-", label=f"P&L moyen de l'{acteur}"
+                if acteur == "acheteur" else "P&L moyen du vendeur")
         ax.fill_between(vols * 100, moyennes - ecarts, moyennes + ecarts, alpha=0.2,
                         label="± 1 écart-type")
         ax.axhline(0, color="black", linewidth=0.8)
         ax.axvline(sigma * 100, color="grey", linestyle=":",
                    label=f"Volatilité de couverture ({sigma:.0%})")
         ax.set_xlabel("Volatilité réalisée (%)")
-        ax.set_ylabel("P&L du vendeur")
-        ax.set_title("Un vendeur couvert parie sur l'agitation, pas sur la direction")
+        ax.set_ylabel(f"P&L de l'{acteur}" if acteur == "acheteur" else "P&L du vendeur")
+        ax.set_title("Une position couverte en delta parie sur l'agitation, pas sur la direction")
         ax.legend(fontsize=8)
         st.pyplot(fig)
         plt.close(fig)
-        st.caption("Le P&L suit environ ½∫ΓS²(σ²_implicite − σ²_réalisée) dt : il s'annule "
-                   "quand la volatilité réalisée égale celle à laquelle l'option a été vendue.")
+        st.caption("Le P&L du vendeur suit environ ½∫ΓS²(σ²_implicite − σ²_réalisée) dt : "
+                   "il s'annule quand la volatilité réalisée égale celle à laquelle l'option a "
+                   "été vendue, et celui de l'acheteur en est l'opposé.")
 
-    st.caption("Le vendeur est short gamma : la couverture se refait toujours à son "
-               "désavantage, ce que le thêta compense en moyenne seulement.")
+    if vendeur:
+        st.caption("Le vendeur est short gamma : il rachète quand le marché monte et revend "
+                   "quand il baisse, donc la couverture se refait toujours à son désavantage. "
+                   "Le thêta l'en dédommage, mais en moyenne seulement.")
+    else:
+        st.caption("L'acheteur est long gamma : il revend quand le marché monte et rachète "
+                   "quand il baisse, donc sa couverture lui rapporte. En contrepartie, il paie "
+                   "le thêta chaque jour qui passe.")
 
 # ------------------------------------------------------- 5. Volatilité implicite
 with onglets[4]:
@@ -498,13 +533,13 @@ with onglets[4]:
         st.warning(f"Pas de volatilité implicite exploitable : {erreur}")
 
     st.divider()
-    st.markdown("**Surface de marché.** Les prix cotés sont récupérés en direct, nettoyés par "
-                "sept filtres journalisés, puis inversés. Le forward de chaque maturité est "
-                "estimé par parité call-put, sans supposer de dividende.")
+    st.markdown("**Surface de marché.** Les prix cotés sont nettoyés par sept filtres "
+                "journalisés, puis inversés. Le forward de chaque maturité est estimé par "
+                "parité call-put, sans supposer de dividende.")
     ticker = st.text_input("Sous-jacent", value="SPY")
     taux_surface = st.slider("Taux sans risque supposé (%)", 0.0, 8.0, 4.0, 0.25) / 100
     sources = (["Instantané du dépôt", "Marché en direct"] if INSTANTANE.exists()
-            else ["Marché en direct"])
+               else ["Marché en direct"])
     source = st.radio("Source des données", sources, horizontal=True)
 
     if st.button("Charger la surface de volatilité"):
