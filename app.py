@@ -415,6 +415,72 @@ with onglets[3]:
     signe = 1.0 if vendeur else -1.0
     acteur = "vendeur" if vendeur else "acheteur"
 
+    st.subheader("Ma couverture, maintenant")
+    reglages_pos = st.columns(2)
+    n_contrats = reglages_pos[0].number_input("Nombre de contrats", min_value=1,
+                                              max_value=10_000, value=10, step=1)
+    taille_contrat = reglages_pos[1].number_input("Titres par contrat", min_value=1,
+                                                  max_value=1000, value=100, step=1)
+
+    option_pos = (AmericanOption if americain else EuropeanOption)(K, T, type_option)
+    marche_pos = MarketData(spot=S, rate=r, dividend=q, vol=sigma)
+    moteur_pos = BinomialTreeEngine(n_steps) if americain else BlackScholesEngine()
+
+    def delta_unitaire(spot):
+        """Delta d'une option : analytique si européenne, différences finies si américaine."""
+        marche_spot = replace(marche_pos, spot=float(spot))
+        if americain:
+            return finite_difference_greeks(BinomialTreeEngine(250), option_pos,
+                                            marche_spot, pas_spot=1e-3).delta
+        return BlackScholesEngine().greeks(option_pos, marche_spot).delta
+
+    # Position en options, signée : négative si l'on est vendeur.
+    quantite = (-1 if vendeur else 1) * n_contrats * taille_contrat
+    delta_0 = delta_unitaire(S)
+    titres_0 = -quantite * delta_0          # couverture : on annule le delta du portefeuille
+    prime_position = moteur_pos.price(option_pos, marche_pos) * n_contrats * taille_contrat
+
+    cols = st.columns(4)
+    cols[0].metric("Delta unitaire", f"{delta_0:+.4f}")
+    cols[1].metric("Titres à détenir", f"{titres_0:+,.0f}".replace(",", " "))
+    cols[2].metric("Valeur de la couverture", f"{titres_0 * S:+,.0f} €".replace(",", " "))
+    cols[3].metric(f"Prime {'encaissée' if vendeur else 'payée'}",
+                   f"{prime_position:,.0f} €".replace(",", " "))
+    st.caption(
+        f"Position : {'vendeur' if vendeur else 'acheteur'} de {n_contrats} contrats, soit "
+        + f"{abs(quantite):,.0f} options".replace(",", " ")
+        + f". Il faut {'acheter' if titres_0 > 0 else 'vendre'} "
+        + f"{abs(titres_0):,.0f} titres".replace(",", " ")
+        + " pour être delta-neutre."
+    )
+
+    lignes = []
+    for choc in (-0.10, -0.05, 0.0, 0.05, 0.10):
+        spot_choc = S * (1 + choc)
+        delta_choc = delta_unitaire(spot_choc)
+        titres_cibles = -quantite * delta_choc
+        ajustement = titres_cibles - titres_0
+        lignes.append({
+            "Si le spot passe à": f"{spot_choc:.2f}  ({choc:+.0%})",
+            "Delta unitaire": delta_choc,
+            "Titres à détenir": titres_cibles,
+            "À acheter (+) ou vendre (−)": ajustement,
+            "Flux de trésorerie": -ajustement * spot_choc,
+        })
+
+    st.dataframe(
+        pd.DataFrame(lignes).set_index("Si le spot passe à").style.format({
+            "Delta unitaire": "{:+.4f}", "Titres à détenir": "{:+,.0f}",
+            "À acheter (+) ou vendre (−)": "{:+,.0f}", "Flux de trésorerie": "{:+,.0f} €"}),
+        use_container_width=True)
+
+    st.caption("Lecture : pour un vendeur de call, le spot monte → il faut détenir plus de "
+               "titres, donc **acheter plus cher** ; le spot baisse → il faut en détenir moins, "
+               "donc **vendre moins cher**. C'est le coût du gamma négatif, que le thêta "
+               "rémunère en moyenne. Pour un acheteur, les deux colonnes s'inversent.")
+    st.divider()
+
+    st.subheader("L'erreur de réplication")
     st.markdown(f"**Expérience.** On {'vend' if vendeur else 'achète'} un call et on le réplique "
                 "en rebalançant le delta à fréquence fixe. L'erreur finale est ce qui reste "
                 "après règlement du payoff. La position est simulée du côté "
